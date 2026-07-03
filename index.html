@@ -677,8 +677,61 @@ const WB_INIT="let globalData = {total:0,winbackCount:0,daily:[],oltCounts:[],bu
 const SKEY='nexus_v1';
 function emptyCache(){return{isp:{instData:null,psData:null},winback:{globalData:null},cfu:{rows:null},art:{rows:null},renewal:{billingData:null,renewalBase:null}};}
 function loadCache(){try{const s=localStorage.getItem(SKEY);return s?JSON.parse(s):emptyCache();}catch(e){return emptyCache();}}
-function saveCache(){try{localStorage.setItem(SKEY,JSON.stringify(cache));}catch(e){}}
+function saveCache(){try{localStorage.setItem(SKEY,JSON.stringify(cache));}catch(e){} cloudPushDebounced();}
 const cache=loadCache();
+
+// ═══════════════════════════════════════════════════
+// CLOUD SYNC (Google Sheets backup) — added by Claude
+// ═══════════════════════════════════════════════════
+// Deploy CLOUD_APPS_SCRIPT.gs as a Web App (see comments in that file),
+// then paste the resulting URL below between the quotes.
+const CLOUD_SYNC_URL = 'https://script.google.com/macros/s/AKfycbzaArpai_HfuFZhUAUXLwOyn6F2sxFGsJD2pXRAVRaZtJL9k4GhdhM8TofUUjJVIeyqfg/exec';
+
+let cloudPushTimer=null;
+function cloudPushDebounced(){
+  if(!CLOUD_SYNC_URL || CLOUD_SYNC_URL.indexOf('PASTE_YOUR')===0) return; // not configured yet
+  clearTimeout(cloudPushTimer);
+  cloudPushTimer=setTimeout(cloudPush, 1500);
+}
+function cloudPush(){
+  if(!CLOUD_SYNC_URL || CLOUD_SYNC_URL.indexOf('PASTE_YOUR')===0) return;
+  try{
+    fetch(CLOUD_SYNC_URL, {
+      method:'POST',
+      headers:{'Content-Type':'text/plain;charset=utf-8'}, // avoids CORS preflight to Apps Script
+      body: JSON.stringify({cache: cache})
+    }).then(r=>r.json()).then(res=>{
+      if(res && res.status==='ok'){ try{notify('☁️ Cloud backup saved','save');}catch(e){} }
+    }).catch(err=>{ console.warn('Cloud push failed', err); });
+  }catch(err){ console.warn('Cloud push error', err); }
+}
+function cloudPull(){
+  if(!CLOUD_SYNC_URL || CLOUD_SYNC_URL.indexOf('PASTE_YOUR')===0) return;
+  try{
+    fetch(CLOUD_SYNC_URL, {method:'GET'})
+      .then(r=>r.json())
+      .then(res=>{
+        if(!res || !res.cache) return;
+        const cloudCache = res.cache;
+        // Only restore from cloud if local cache is empty (avoids overwriting fresher local edits)
+        const localHasData = (cache.isp.instData||cache.isp.psData||cache.winback.globalData?.total>0||cache.renewal.billingData?.length>0||cache.cfu.rows?.length>0||cache.art.rows?.length>0);
+        if(!localHasData){
+          Object.assign(cache, cloudCache);
+          saveCacheLocalOnly_();
+          if(cache.isp.instData||cache.isp.psData)markSaved('isp',false);
+          if(cache.winback.globalData?.total>0)markSaved('winback',false);
+          if(cache.renewal.billingData?.length>0)markSaved('renewal',false);
+          if(cache.cfu.rows?.length>0)markSaved('cfu',false);
+          if(cache.art.rows?.length>0)markSaved('art',false);
+          updateCardCounts();
+          try{notify('☁️ Cloud backup बाट data restore भयो','save');}catch(e){}
+        }
+      })
+      .catch(err=>console.warn('Cloud pull failed', err));
+  }catch(err){ console.warn('Cloud pull error', err); }
+}
+function saveCacheLocalOnly_(){ try{localStorage.setItem(SKEY,JSON.stringify(cache));}catch(e){} }
+setTimeout(cloudPull, 800);
 let currentDash=null,sessionStart=Date.now();
 
 // restore badges
@@ -1466,5 +1519,107 @@ window.addEventListener('message',function(e){
     </div>
   </div>
 </div>
+
+<!-- CLOUD SYNC (Google Sheet) BUTTON + MODAL -->
+<button id="cloudSyncFab" onclick="openCloudSyncModal()" title="Cloud Sync (Google Sheet)" style="position:fixed;bottom:20px;right:20px;z-index:2500;width:52px;height:52px;border-radius:50%;background:#185FA5;color:#fff;border:none;box-shadow:0 4px 14px rgba(0,0,0,.25);font-size:22px;cursor:pointer;display:flex;align-items:center;justify-content:center;">☁️</button>
+
+<div id="cloudSyncModal" class="adm-modal-overlay" style="display:none;">
+  <div class="adm-modal adm-modal-sm">
+    <div class="adm-modal-head"><div>☁️ Cloud Sync — Google Sheet</div><button class="adm-modal-x" onclick="closeCloudSyncModal()">✕</button></div>
+    <div class="adm-modal-body">
+      <div style="font-size:12px;color:var(--pbi-text2);margin-bottom:10px;line-height:1.5;">
+        Yesले yo browser ko sabai NEXUS data (winback, ISP ops, AOP, admin edits) lai Google Sheet ma backup/restore garcha, taaki arko device/user le pani same data access garna sakos.
+      </div>
+      <div class="lfield-label">Apps Script Web App URL</div>
+      <input type="text" id="cloudSyncUrl" class="adm-input" placeholder="https://script.google.com/macros/s/XXXX/exec" style="margin-bottom:10px;">
+      <div id="cloudSyncStatus" style="font-size:11px;color:var(--pbi-text3);margin-bottom:10px;min-height:16px;"></div>
+      <div style="display:flex;gap:8px;">
+        <button class="adm-btn-primary" style="flex:1;" onclick="cloudSyncUpload()">⬆ Upload (save to cloud)</button>
+        <button class="adm-btn-secondary" style="flex:1;" onclick="cloudSyncDownload()">⬇ Download (load from cloud)</button>
+      </div>
+    </div>
+    <div class="adm-modal-foot">
+      <div style="flex:1"></div>
+      <button class="adm-btn-secondary" onclick="closeCloudSyncModal()">Close</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  var DEFAULT_CLOUD_SYNC_URL = 'https://script.google.com/macros/s/AKfycbzaArpai_HfuFZhUAUXLwOyn6F2sxFGsJD2pXRAVRaZtJL9k4GhdhM8TofUUjJVIeyqfg/exec';
+  function csGetUrl(){
+    var u = document.getElementById('cloudSyncUrl').value.trim() || localStorage.getItem('nexus_cloud_sync_url') || DEFAULT_CLOUD_SYNC_URL;
+    document.getElementById('cloudSyncUrl').value = u;
+    return u;
+  }
+  window.openCloudSyncModal = function(){
+    document.getElementById('cloudSyncModal').style.display = 'flex';
+    var saved = localStorage.getItem('nexus_cloud_sync_url') || DEFAULT_CLOUD_SYNC_URL;
+    document.getElementById('cloudSyncUrl').value = saved;
+    var lastSync = localStorage.getItem('nexus_cloud_last_sync');
+    document.getElementById('cloudSyncStatus').textContent = lastSync ? ('Last sync: ' + lastSync) : '';
+  };
+  window.closeCloudSyncModal = function(){
+    document.getElementById('cloudSyncModal').style.display = 'none';
+  };
+  window.cloudSyncUpload = async function(){
+    var url = csGetUrl();
+    if(!url){ alert('Pahile Apps Script URL halnus.'); return; }
+    localStorage.setItem('nexus_cloud_sync_url', url);
+    var status = document.getElementById('cloudSyncStatus');
+    status.textContent = 'Uploading...';
+    try{
+      var snapshot = {};
+      for(var i=0;i<localStorage.length;i++){
+        var k = localStorage.key(i);
+        if(k === 'nexus_cloud_sync_url') continue;
+        snapshot[k] = localStorage.getItem(k);
+      }
+      var resp = await fetch(url, {
+        method:'POST',
+        headers:{'Content-Type':'text/plain;charset=utf-8'},
+        body: JSON.stringify({action:'save', data:snapshot})
+      });
+      var result = await resp.json();
+      if(result && result.status === 'success'){
+        var now = new Date().toLocaleString();
+        localStorage.setItem('nexus_cloud_last_sync', now);
+        status.textContent = '✅ Uploaded successfully · ' + now;
+      } else {
+        status.textContent = '⚠️ Upload response unexpected — check Apps Script deployment.';
+      }
+    }catch(err){
+      status.textContent = '❌ Upload failed: ' + err.message;
+    }
+  };
+  window.cloudSyncDownload = async function(){
+    var url = csGetUrl();
+    if(!url){ alert('Pahile Apps Script URL halnus.'); return; }
+    localStorage.setItem('nexus_cloud_sync_url', url);
+    if(!confirm('Cloud bata data download garda, yo browser ko current local data overwrite huncha. Continue garne?')) return;
+    var status = document.getElementById('cloudSyncStatus');
+    status.textContent = 'Downloading...';
+    try{
+      var resp = await fetch(url + '?action=load');
+      var result = await resp.json();
+      if(result && result.data){
+        Object.keys(result.data).forEach(function(k){
+          localStorage.setItem(k, result.data[k]);
+        });
+        var now = new Date().toLocaleString();
+        localStorage.setItem('nexus_cloud_last_sync', now);
+        status.textContent = '✅ Downloaded — reloading page...';
+        setTimeout(function(){ location.reload(); }, 800);
+      } else {
+        status.textContent = '⚠️ No cloud data found yet — upload first from another device.';
+      }
+    }catch(err){
+      status.textContent = '❌ Download failed: ' + err.message;
+    }
+  };
+})();
+</script>
+
 </body>
 </html>
