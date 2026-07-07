@@ -201,35 +201,6 @@ body::before{display:none;}
 .dcard-status.live{background:#e6f4ea;color:var(--pbi-green);}
 .dcard-arrow{color:var(--pbi-text3);font-weight:600;}
 
-/* Admin Branch-wise Comparison Table */
-#branchAdminSection{display:none;margin-top:34px;}
-.bat-head{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:14px;}
-.bat-title-wrap{display:flex;align-items:center;gap:10px;}
-.bat-title{font-size:15px;font-weight:700;color:var(--pbi-text);}
-.bat-badge{font-size:9px;font-weight:700;letter-spacing:.05em;color:#fff;background:var(--pbi-purple);padding:3px 8px;border-radius:10px;text-transform:uppercase;}
-.bat-tools{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
-.bat-search{padding:7px 10px;border:1px solid var(--pbi-border2);border-radius:6px;font-size:12px;width:180px;outline:none;font-family:inherit;}
-.bat-search:focus{border-color:var(--pbi-blue);}
-.bat-export{padding:7px 12px;border:none;border-radius:6px;background:var(--pbi-green);color:#fff;font-size:11px;font-weight:700;cursor:pointer;}
-.bat-export:hover{filter:brightness(1.08);}
-.bat-wrap{background:var(--pbi-surface);border:1px solid var(--pbi-border);border-radius:8px;box-shadow:var(--pbi-shadow);overflow:auto;max-height:520px;}
-table.bat{width:100%;border-collapse:collapse;font-size:12px;white-space:nowrap;}
-table.bat thead th{position:sticky;top:0;background:var(--pbi-panel);color:var(--pbi-text2);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:10px 12px;text-align:right;border-bottom:1px solid var(--pbi-border);cursor:pointer;user-select:none;z-index:2;}
-table.bat thead th:first-child{text-align:left;position:sticky;left:0;z-index:3;}
-table.bat thead th .sort-ind{opacity:.4;margin-left:4px;font-size:9px;}
-table.bat thead th.sorted .sort-ind{opacity:1;color:var(--pbi-blue);}
-table.bat tbody td{padding:9px 12px;border-bottom:1px solid var(--pbi-border);text-align:right;color:var(--pbi-text);}
-table.bat tbody td:first-child{text-align:left;font-weight:600;position:sticky;left:0;background:var(--pbi-surface);}
-table.bat tbody tr:hover td{background:var(--pbi-panel);}
-table.bat tbody tr:hover td:first-child{background:var(--pbi-panel);}
-table.bat tbody tr.bat-total td{font-weight:700;background:var(--pbi-blue-lt);border-top:2px solid var(--pbi-blue);position:sticky;bottom:0;}
-table.bat tbody tr.bat-total td:first-child{background:var(--pbi-blue-lt);}
-.bat-pill{display:inline-block;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700;}
-.bat-pill.good{background:#e6f4ea;color:var(--pbi-green);}
-.bat-pill.warn{background:#fdf0e0;color:var(--pbi-orange);}
-.bat-pill.bad{background:#fbe9ea;color:var(--pbi-red);}
-.bat-empty{padding:30px;text-align:center;color:var(--pbi-text3);font-size:12px;}
-
 /* ═══════════════ DASH VIEW ═══════════════ */
 #dashView{flex:1;display:none;position:relative;background:var(--pbi-bg);}
 #dashLoading{position:absolute;inset:0;background:var(--pbi-bg);display:none;flex-direction:column;align-items:center;justify-content:center;gap:14px;z-index:5;}
@@ -921,35 +892,6 @@ table.bat tbody tr.bat-total td:first-child{background:var(--pbi-blue-lt);}
             <div class="nx-activity-row"><span class="nx-activity-dot" style="background:#00ff9d;"></span><span class="nx-activity-text">Power BI data source connected</span><span class="nx-activity-time">15 min ago</span></div>
             <div class="nx-activity-row"><span class="nx-activity-dot" style="background:#f2c811;"></span><span class="nx-activity-text">AOP dashboard in standby mode</span><span class="nx-activity-time">25 min ago</span></div>
           </div>
-        </div>
-      </div>
-
-      <div id="branchAdminSection">
-        <div class="bat-head">
-          <div class="bat-title-wrap">
-            <div class="bat-title">🏢 Branch-wise Performance</div>
-            <div class="bat-badge">Admin Only</div>
-          </div>
-          <div class="bat-tools">
-            <input class="bat-search" id="batSearch" placeholder="Search branch…" oninput="renderBranchTable()">
-            <button class="bat-export" onclick="exportBranchTableCSV()">⬇ Export CSV</button>
-          </div>
-        </div>
-        <div class="bat-wrap">
-          <table class="bat" id="batTable">
-            <thead>
-              <tr>
-                <th onclick="sortBranchTable('branch')" data-col="branch">Branch<span class="sort-ind">↕</span></th>
-                <th onclick="sortBranchTable('installations')" data-col="installations">Installations<span class="sort-ind">↕</span></th>
-                <th onclick="sortBranchTable('activeCustomers')" data-col="activeCustomers">Active Customers<span class="sort-ind">↕</span></th>
-                <th onclick="sortBranchTable('churn')" data-col="churn">Churn<span class="sort-ind">↕</span></th>
-                <th onclick="sortBranchTable('revenue')" data-col="revenue">Revenue (NPR)<span class="sort-ind">↕</span></th>
-                <th onclick="sortBranchTable('target')" data-col="target">Target Achv.<span class="sort-ind">↕</span></th>
-                <th onclick="sortBranchTable('health')" data-col="health">Health Score<span class="sort-ind">↕</span></th>
-              </tr>
-            </thead>
-            <tbody id="batBody"></tbody>
-          </table>
         </div>
       </div>
     </div>
@@ -1697,122 +1639,6 @@ function renderAdminUI(){
   }
   applyModuleState();
   broadcastAdminStateToDashFrame();
-  const batSection=document.getElementById('branchAdminSection');
-  if(batSection){
-    batSection.style.display=adminMode?'block':'none';
-    if(adminMode) renderBranchTable();
-  }
-}
-
-/* ===== Branch-wise Admin Comparison Table =====
-   NOTE: This currently runs on SAMPLE data seeded per branch so the UI/UX can be
-   built and reviewed today. Replace BRANCH_KPI_DATA with a fetch to a real
-   Apps Script endpoint (e.g. action=getAllBranches) once that backend exists —
-   the render/sort/filter/export logic below will keep working unchanged as
-   long as each row keeps the same field names. */
-const BRANCH_LIST=['AMARSINGHCHOWK','BAGAR','BAGLUNG','BENI','BESISAHAR','DAMAULI','DUMRE','GALKOT','GORKHA','KUSMA','LEKHNATH','MAHENDRAPOOL','RAMPUR','RASTRABANKCHOWK','REGION5-NBU1','SHUKLAGANDAKI','SUNDARBAZAR','SYANGJA','WALLING'];
-
-function seedBranchKpiData(){
-  // Deterministic pseudo-random so numbers stay stable between renders/sessions
-  function seededRand(seed){
-    let x=Math.sin(seed)*10000;
-    return x-Math.floor(x);
-  }
-  return BRANCH_LIST.map(function(name,i){
-    const r1=seededRand(i*13.37+1), r2=seededRand(i*7.77+2), r3=seededRand(i*3.14+3), r4=seededRand(i*9.81+4);
-    const installations=Math.round(120+r1*480);
-    const activeCustomers=Math.round(1500+r2*8500);
-    const churn=Math.round((1.5+r3*6)*10)/10; // %
-    const revenue=Math.round((0.8+r4*4.2)*1000000); // NPR
-    const target=Math.round((70+seededRand(i*5.5+5)*35));
-    const health=Math.max(0,Math.min(100,Math.round(target*0.5+(100-churn*8)*0.3+(activeCustomers/10000)*20)));
-    return {branch:name,installations:installations,activeCustomers:activeCustomers,churn:churn,revenue:revenue,target:target,health:health};
-  });
-}
-let BRANCH_KPI_DATA=seedBranchKpiData();
-let batSortCol='branch', batSortDir=1;
-
-function healthPillClass(v){ return v>=80?'good':(v>=60?'warn':'bad'); }
-function targetPillClass(v){ return v>=100?'good':(v>=85?'warn':'bad'); }
-function churnPillClass(v){ return v<=3?'good':(v<=6?'warn':'bad'); }
-
-function sortBranchTable(col){
-  if(batSortCol===col){ batSortDir*=-1; } else { batSortCol=col; batSortDir=1; }
-  renderBranchTable();
-}
-
-function renderBranchTable(){
-  const body=document.getElementById('batBody');
-  if(!body) return;
-  const q=(document.getElementById('batSearch')||{}).value||'';
-  const qLower=q.trim().toLowerCase();
-  let rows=BRANCH_KPI_DATA.filter(function(r){ return r.branch.toLowerCase().indexOf(qLower)!==-1; });
-
-  rows=rows.slice().sort(function(a,b){
-    let av=a[batSortCol], bv=b[batSortCol];
-    if(typeof av==='string'){ av=av.toLowerCase(); bv=bv.toLowerCase(); return av<bv?-1*batSortDir:(av>bv?1*batSortDir:0); }
-    return (av-bv)*batSortDir;
-  });
-
-  document.querySelectorAll('#batTable thead th').forEach(function(th){
-    th.classList.toggle('sorted', th.getAttribute('data-col')===batSortCol);
-    const ind=th.querySelector('.sort-ind');
-    if(ind) ind.textContent = th.getAttribute('data-col')===batSortCol ? (batSortDir===1?'↑':'↓') : '↕';
-  });
-
-  if(!rows.length){
-    body.innerHTML='<tr><td colspan="7" class="bat-empty">No branches match "'+q+'"</td></tr>';
-    return;
-  }
-
-  const totals=rows.reduce(function(acc,r){
-    acc.installations+=r.installations; acc.activeCustomers+=r.activeCustomers;
-    acc.revenue+=r.revenue; acc.churn+=r.churn; acc.target+=r.target; acc.health+=r.health;
-    return acc;
-  },{installations:0,activeCustomers:0,revenue:0,churn:0,target:0,health:0});
-  const n=rows.length;
-
-  let html=rows.map(function(r){
-    return '<tr>'+
-      '<td>'+r.branch+'</td>'+
-      '<td>'+r.installations.toLocaleString()+'</td>'+
-      '<td>'+r.activeCustomers.toLocaleString()+'</td>'+
-      '<td><span class="bat-pill '+churnPillClass(r.churn)+'">'+r.churn+'%</span></td>'+
-      '<td>₨ '+r.revenue.toLocaleString()+'</td>'+
-      '<td><span class="bat-pill '+targetPillClass(r.target)+'">'+r.target+'%</span></td>'+
-      '<td><span class="bat-pill '+healthPillClass(r.health)+'">'+r.health+'</span></td>'+
-      '</tr>';
-  }).join('');
-
-  html+='<tr class="bat-total">'+
-    '<td>TOTAL ('+n+' branches)</td>'+
-    '<td>'+totals.installations.toLocaleString()+'</td>'+
-    '<td>'+totals.activeCustomers.toLocaleString()+'</td>'+
-    '<td>'+(Math.round(totals.churn/n*10)/10)+'% avg</td>'+
-    '<td>₨ '+totals.revenue.toLocaleString()+'</td>'+
-    '<td>'+Math.round(totals.target/n)+'% avg</td>'+
-    '<td>'+Math.round(totals.health/n)+' avg</td>'+
-    '</tr>';
-
-  body.innerHTML=html;
-}
-
-function exportBranchTableCSV(){
-  const q=(document.getElementById('batSearch')||{}).value||'';
-  const qLower=q.trim().toLowerCase();
-  const rows=BRANCH_KPI_DATA.filter(function(r){ return r.branch.toLowerCase().indexOf(qLower)!==-1; });
-  const header=['Branch','Installations','Active Customers','Churn %','Revenue (NPR)','Target Achievement %','Health Score'];
-  const lines=[header.join(',')];
-  rows.forEach(function(r){
-    lines.push([r.branch,r.installations,r.activeCustomers,r.churn,r.revenue,r.target,r.health].join(','));
-  });
-  const blob=new Blob([lines.join('\n')],{type:'text/csv;charset=utf-8;'});
-  const url=URL.createObjectURL(blob);
-  const a=document.createElement('a');
-  a.href=url; a.download='branch_performance_'+new Date().toISOString().slice(0,10)+'.csv';
-  document.body.appendChild(a); a.click(); document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-  if(typeof admToast==='function') admToast('Branch table exported to CSV');
 }
 
 function applyModuleState(){
