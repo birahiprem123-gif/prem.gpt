@@ -527,7 +527,7 @@ table.bat tbody tr.bat-total td:first-child{background:var(--pbi-blue-lt);}
     </div>
     <div class="sp-sys">Mero App NEXUS</div>
     <div class="sp-title">Data Analysis</div>
-    <div class="sp-sub">Shuklagandaki Branch Reporting Suite</div>
+    <div class="sp-sub">Branch Reporting Suite</div>
     <div class="sp-author">Built by Prem</div>
     <div class="sp-progress-wrap">
       <div class="sp-progress-labels">
@@ -596,7 +596,7 @@ table.bat tbody tr.bat-total td:first-child{background:var(--pbi-blue-lt);}
           <div class="lav-status"></div>
         </div>
         <div class="lname">Mero App NEXUS</div>
-        <div class="lrole">Worldlink &middot; Shuklagandaki Branch Reporting</div>
+        <div class="lrole">Worldlink &middot; Branch Reporting</div>
 
         <div class="lfield-label">Username</div>
         <div class="luwrap">
@@ -634,7 +634,7 @@ table.bat tbody tr.bat-total td:first-child{background:var(--pbi-blue-lt);}
   <div class="topbar">
     <div class="tb-logo">
       <div class="tb-logo-mark">NX</div>
-      <div><div class="tb-name">Mero App NEXUS</div><div class="tb-ver">Shuklagandaki Branch Reporting</div></div>
+      <div><div class="tb-name">Mero App NEXUS</div><div class="tb-ver" id="tbVer">Branch Reporting</div></div>
     </div>
     <div class="tb-nav">
       <button class="np active" id="homeBtn" onclick="showHome()"><span class="nd"></span>Home</button>
@@ -679,7 +679,7 @@ table.bat tbody tr.bat-total td:first-child{background:var(--pbi-blue-lt);}
     <div class="home-wrap">
       <div class="nx-hero">
         <div class="nx-hero-left">
-          <div class="nx-hero-greeting"><span id="home-greeting">Good morning</span>, Shuklagandaki! <span class="wave">👋</span></div>
+          <div class="nx-hero-greeting"><span id="home-greeting">Good morning</span>, <span id="home-branch-name">there</span>! <span class="wave">👋</span></div>
           <div class="nx-hero-sub">Import once &middot; switch freely &middot; session-persistent data cache. Seven analytical modules, zero re-import required.</div>
           <button class="nx-hero-btn" onclick="openDash('aop')">View Performance <span style="font-size:15px;">&rarr;</span></button>
           <div class="nx-hero-status"><span class="dot"></span>All systems operational</div>
@@ -723,7 +723,7 @@ table.bat tbody tr.bat-total td:first-child{background:var(--pbi-blue-lt);}
             </div>
           </div>
           <div class="dcard-name">WINBACK MODULE</div>
-          <div class="dcard-desc">Customer payment behaviour analysis · Winback tracking · FY cohort analysis · SHUKLAGANDAKI</div>
+          <div class="dcard-desc" id="wbCardDesc">Customer payment behaviour analysis · Winback tracking · FY cohort analysis · <span class="dcard-branch">SHUKLAGANDAKI</span></div>
           <div style="font-size:18px;font-weight:700;color:#ff6b35;margin-bottom:2px;" id="wb-count">—</div>
           <div style="font-size:9px;color:var(--pbi-text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px;">winback records loaded</div>
           <div class="dcard-footer">
@@ -758,7 +758,7 @@ table.bat tbody tr.bat-total td:first-child{background:var(--pbi-blue-lt);}
             </div>
           </div>
           <div class="dcard-name">RENEWAL WINBACK MODULE</div>
-          <div class="dcard-desc">Renewal customer winback tracking · Gap-based churn detection · OLT cohort drill-down · SHUKLAGANDAKI</div>
+          <div class="dcard-desc" id="renewalCardDesc">Renewal customer winback tracking · Gap-based churn detection · OLT cohort drill-down · <span class="dcard-branch">SHUKLAGANDAKI</span></div>
           <div style="font-size:18px;font-weight:700;color:#ffcc00;margin-bottom:2px;" id="renewal-count">—</div>
           <div style="font-size:9px;color:var(--pbi-text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px;">billing rows loaded</div>
           <div class="dcard-footer">
@@ -776,7 +776,7 @@ table.bat tbody tr.bat-total td:first-child{background:var(--pbi-blue-lt);}
             </div>
           </div>
           <div class="dcard-name">CFU FOLLOW-UP MODULE</div>
-          <div class="dcard-desc">Customer follow-up call tracking · Action status · Field staff assignment · SHUKLAGANDAKI</div>
+          <div class="dcard-desc" id="cfuCardDesc">Customer follow-up call tracking · Action status · Field staff assignment · <span class="dcard-branch">SHUKLAGANDAKI</span></div>
           <div style="font-size:18px;font-weight:700;color:#a78bfa;margin-bottom:2px;" id="cfu-count">—</div>
           <div style="font-size:9px;color:var(--pbi-text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px;">follow-up records loaded</div>
           <div class="dcard-footer">
@@ -794,7 +794,7 @@ table.bat tbody tr.bat-total td:first-child{background:var(--pbi-blue-lt);}
             </div>
           </div>
           <div class="dcard-name">ART VISIT MODULE</div>
-          <div class="dcard-desc">Field visit tracking · Winback action attempts · Hygiene &amp; OLT coverage · SHUKLAGANDAKI</div>
+          <div class="dcard-desc" id="artCardDesc">Field visit tracking · Winback action attempts · Hygiene &amp; OLT coverage · <span class="dcard-branch">SHUKLAGANDAKI</span></div>
           <div style="font-size:18px;font-weight:700;color:#34d399;margin-bottom:2px;" id="art-count">—</div>
           <div style="font-size:9px;color:var(--pbi-text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px;">visit records loaded</div>
           <div class="dcard-footer">
@@ -1300,6 +1300,14 @@ function applyUserBranding(name, branch, role){
     }
   }
   if(branchTag) branchTag.textContent=(name?name+' · ':'')+(branch||'');
+
+  // Dynamic branch name everywhere else in the UI (was hardcoded to Shuklagandaki before)
+  const branchDisplay = branch || 'your branch';
+  const homeBranchEl = document.getElementById('home-branch-name');
+  if(homeBranchEl) homeBranchEl.textContent = branchDisplay;
+  const tbVerEl = document.getElementById('tbVer');
+  if(tbVerEl) tbVerEl.textContent = branchDisplay + ' Branch Reporting';
+  document.querySelectorAll('.dcard-branch').forEach(function(el){ el.textContent = branchDisplay; });
 }
 
 async function doLogin(){
