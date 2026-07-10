@@ -11,7 +11,7 @@
 <meta name="format-detection" content="telephone=no">
 <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%230f2749'/%3E%3Ctext x='50' y='66' font-size='54' font-family='Arial,sans-serif' font-weight='700' fill='%23f2c811' text-anchor='middle'%3EN%3C/text%3E%3C/svg%3E">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%230f2749'/%3E%3Ctext x='50' y='66' font-size='54' font-family='Arial,sans-serif' font-weight='700' fill='%23f2c811' text-anchor='middle'%3EN%3C/text%3E%3C/svg%3E">
-<title>Worldlink · com.np</title>
+<title>Worldlink · Data Intelligence Platform</title>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500;600&family=Orbitron:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
@@ -1040,7 +1040,7 @@ const WB_INIT="let globalData = {total:0,winbackCount:0,daily:[],oltCounts:[],bu
 const SKEY='Worldlink_v1';
 function emptyCache(){return{isp:{instData:null,psData:null},winback:{globalData:null},cfu:{rows:null},art:{rows:null},renewal:{billingData:null,renewalBase:null}};}
 function loadCache(){try{const s=localStorage.getItem(SKEY);return s?JSON.parse(s):emptyCache();}catch(e){return emptyCache();}}
-function saveCache(){try{localStorage.setItem(SKEY,JSON.stringify(cache));}catch(e){} cloudPushDebounced();}
+function saveCache(){try{localStorage.setItem(SKEY,JSON.stringify(cache));localStorage.setItem(SKEY+'_ts',new Date().toISOString());}catch(e){} cloudPushDebounced();}
 const cache=loadCache();
 
 // ═══════════════════════════════════════════════════
@@ -1080,11 +1080,16 @@ function cloudPull(){
       .then(res=>{
         if(!res || !res.cache) return;
         const cloudCache = res.cache;
-        // Only restore from cloud if local cache is empty (avoids overwriting fresher local edits)
-        const localHasData = (cache.isp.instData||cache.isp.psData||cache.winback.globalData?.total>0||cache.renewal.billingData?.length>0||cache.cfu.rows?.length>0||cache.art.rows?.length>0);
-        if(!localHasData){
+        // Compare timestamps: pull cloud data whenever it's newer than what's on this device
+        // (fixes the old behaviour where having ANY local data at all blocked syncing forever,
+        // so colleagues on other devices never saw each other's updates).
+        const localTs = localStorage.getItem(SKEY+'_ts');
+        const cloudTs = res.updatedAt;
+        const cloudIsNewer = cloudTs && (!localTs || new Date(cloudTs) > new Date(localTs));
+        if(cloudIsNewer){
           Object.assign(cache, cloudCache);
           saveCacheLocalOnly_();
+          try{ localStorage.setItem(SKEY+'_ts', cloudTs); }catch(e){}
           if(cache.isp.instData||cache.isp.psData)markSaved('isp',false);
           if(cache.winback.globalData?.total>0)markSaved('winback',false);
           if(cache.renewal.billingData?.length>0)markSaved('renewal',false);
