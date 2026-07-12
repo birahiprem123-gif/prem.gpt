@@ -1082,37 +1082,34 @@ function cloudPush(){
     }).catch(err=>{ console.warn('Cloud push failed', err); });
   }catch(err){ console.warn('Cloud push error', err); }
 }
-function cloudPull(){
-  if(!CLOUD_SYNC_URL || CLOUD_SYNC_URL.indexOf('PASTE_YOUR')===0) return;
-  const branch=(sessionStorage.getItem('nexus_user_branch')||'').trim();
-  if(!branch){ console.warn('Cloud pull skipped: no branch on session'); return; }
+async function cloudPull(branchOverride){
+  const branch=(branchOverride||sessionStorage.getItem('nexus_user_branch')||'').trim();
+  if(!CLOUD_SYNC_URL || CLOUD_SYNC_URL.indexOf('PASTE_YOUR')===0) return {ok:false,reason:'not-configured'};
+  if(!branch){ console.warn('Cloud pull skipped: no branch on session'); return {ok:false,reason:'no-branch'}; }
   try{
-    fetch(CLOUD_SYNC_URL + '?branch=' + encodeURIComponent(branch), {method:'GET'})
-      .then(r=>r.json())
-      .then(res=>{
-        if(!res || !res.cache) return;
-        const cloudCache = res.cache;
-        // Compare timestamps: pull cloud data whenever it's newer than what's on this device
-        // (fixes the old behaviour where having ANY local data at all blocked syncing forever,
-        // so colleagues on other devices never saw each other's updates).
-        const localTs = localStorage.getItem(SKEY+'_ts');
-        const cloudTs = res.updatedAt;
-        const cloudIsNewer = cloudTs && (!localTs || new Date(cloudTs) > new Date(localTs));
-        if(cloudIsNewer){
-          Object.assign(cache, cloudCache);
-          saveCacheLocalOnly_();
-          try{ localStorage.setItem(SKEY+'_ts', cloudTs); }catch(e){}
-          if(cache.isp.instData||cache.isp.psData)markSaved('isp',false);
-          if(cache.winback.globalData?.total>0)markSaved('winback',false);
-          if(cache.renewal.billingData?.length>0)markSaved('renewal',false);
-          if(cache.cfu.rows?.length>0)markSaved('cfu',false);
-          if(cache.art.rows?.length>0)markSaved('art',false);
-          updateCardCounts();
-          try{notify('☁️ Cloud backup बाट data restore भयो','save');}catch(e){}
-        }
-      })
-      .catch(err=>console.warn('Cloud pull failed', err));
-  }catch(err){ console.warn('Cloud pull error', err); }
+    const res = await fetch(CLOUD_SYNC_URL + '?branch=' + encodeURIComponent(branch), {method:'GET'});
+    const json = await res.json();
+    if(json && json.cache){
+      // Strict mode: the Google Sheet is the source of truth. Whatever it has is
+      // adopted unconditionally — we don't try to guess whether local is "newer".
+      Object.assign(cache, json.cache);
+      saveCacheLocalOnly_();
+      try{ if(json.updatedAt) localStorage.setItem(SKEY+'_ts', json.updatedAt); }catch(e){}
+      if(cache.isp.instData||cache.isp.psData)markSaved('isp',false);
+      if(cache.winback.globalData?.total>0)markSaved('winback',false);
+      if(cache.renewal.billingData?.length>0)markSaved('renewal',false);
+      if(cache.cfu.rows?.length>0)markSaved('cfu',false);
+      if(cache.art.rows?.length>0)markSaved('art',false);
+      updateCardCounts();
+      return {ok:true,hadData:true};
+    }
+    // No cloud backup exists yet for this branch — fall back to whatever's already
+    // in local cache (e.g. this device's own not-yet-synced import), not an error.
+    return {ok:true,hadData:false};
+  }catch(err){
+    console.warn('Cloud pull failed', err);
+    return {ok:false,reason:'fetch-error',error:err};
+  }
 }
 function saveCacheLocalOnly_(){ try{localStorage.setItem(SKEY,JSON.stringify(cache));}catch(e){} }
 let currentDash=null,sessionStart=Date.now();
@@ -1306,19 +1303,21 @@ function runSplash(){
   setTimeout(()=>{
     const sp=document.getElementById('splash');
     sp.style.transition='opacity .3s';sp.style.opacity='0';
-    setTimeout(()=>{
+    setTimeout(async ()=>{
       sp.style.display='none';
       const sessionOk=sessionStorage.getItem('nexus_logged_in')==='1' || localStorage.getItem('nexus_persistent_login')==='1';
       if(sessionOk){
         try{sessionStorage.setItem('nexus_logged_in','1');}catch(e){}
-        document.getElementById('mainApp').style.display='flex';
         try{
+          const restoredBranch = sessionStorage.getItem('nexus_user_branch');
           applyUserBranding(
             sessionStorage.getItem('nexus_user_name'),
-            sessionStorage.getItem('nexus_user_branch'),
+            restoredBranch,
             sessionStorage.getItem('nexus_user_role')
           );
+          if(restoredBranch){ await cloudPull(restoredBranch); }
         }catch(e){}
+        document.getElementById('mainApp').style.display='flex';
         showHome();
       } else {
         document.getElementById('loginScreen').style.display='flex';
@@ -1372,9 +1371,9 @@ function applyUserBranding(name, branch, role){
   // browser could flash on screen before cloud sync has a chance to correct it.
   switchCacheToBranch(branch);
   updateCardCounts();
-  // Cloud pull needs the branch to be known first — this is the correct place to trigger it,
-  // not a blind page-load timer that used to fire before login had even happened.
-  if(branch){ setTimeout(cloudPull, 500); }
+  // NOTE: cloudPull is no longer auto-triggered here. Strict mode means the login
+  // flow itself awaits cloudPull() BEFORE revealing #mainApp — see doLogin() and
+  // the persistent-session-restore code below.
   const avatar=document.querySelector('.nx-th-avatar');
   if(avatar) avatar.textContent=(name||'U').trim().charAt(0).toUpperCase();
   const adminBtn=document.getElementById('adminBtn');
@@ -1424,6 +1423,29 @@ function friendlyLoginErrorMessage(msg){
   }
   return m;
 }
+async function revealAppAfterSync(branch, welcomeMsg){
+  const ls=document.getElementById('loginScreen');
+  const btn=document.querySelector('.lbtn');
+  const originalLabel=btn?btn.textContent:'';
+  if(btn){ btn.disabled=true; btn.textContent='Syncing your branch data…'; }
+  let syncResult={ok:true,hadData:false};
+  if(branch){
+    syncResult = await cloudPull(branch);
+  }
+  if(btn){ btn.disabled=false; btn.textContent=originalLabel||'→ Sign in'; }
+  ls.style.transition='opacity .3s';ls.style.opacity='0';
+  setTimeout(()=>{
+    ls.style.display='none';
+    const a=document.getElementById('mainApp');
+    a.style.display='flex';a.style.flexDirection='column';
+    updateStats();updateCardCounts();
+    if(!syncResult.ok && branch){
+      notify('⚠️ Cloud sync fail vayo, local data dekhaudai — internet check garnus','warn');
+    } else {
+      notify(welcomeMsg,'info');
+    }
+  },300);
+}
 async function doLogin(){
   const u=document.getElementById('userI').value.trim();
   const p=document.getElementById('pwI').value;
@@ -1441,8 +1463,7 @@ async function doLogin(){
       }
     }catch(e){}
     applyUserBranding('Admin', '', 'Admin');
-    const ls=document.getElementById('loginScreen');ls.style.transition='opacity .3s';ls.style.opacity='0';
-    setTimeout(()=>{ls.style.display='none';const a=document.getElementById('mainApp');a.style.display='flex';a.style.flexDirection='column';updateStats();updateCardCounts();notify('Welcome back, Admin','info');},300);
+    await revealAppAfterSync('', 'Welcome back, Admin');
     return;
   }
 
@@ -1470,8 +1491,7 @@ async function doLogin(){
         }
       }catch(e){}
       applyUserBranding(data.name, data.branch, data.role);
-      const ls=document.getElementById('loginScreen');ls.style.transition='opacity .3s';ls.style.opacity='0';
-      setTimeout(()=>{ls.style.display='none';const a=document.getElementById('mainApp');a.style.display='flex';a.style.flexDirection='column';updateStats();updateCardCounts();notify('Welcome back, '+(data.name||u),'info');},300);
+      await revealAppAfterSync(data.branch, 'Welcome back, '+(data.name||u));
     } else {
       setLoginError(friendlyLoginErrorMessage(data.message));
     }
